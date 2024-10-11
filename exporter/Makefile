@@ -5,6 +5,7 @@ clean:
 
 build: clean
 	go build -o ./bin/exporter cmd/exporter/main.go
+	go build -o ./bin/hash cmd/hash/main.go
 
 unit-tests: build
 	go test -v ./pkg/...
