@@ -10,6 +10,9 @@ rust-dev:
 build-image:
 	./scripts/build.sh
 
+build-hash-image:
+	./scripts/build-hash.sh
+
 e2e-test: build-image
 	cd exporter && make e2e-test
 
