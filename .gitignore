@@ -85,3 +85,4 @@ build.metadata
 .DS_Store
 
 tools/zipextractor/zipextractor
+dist/
