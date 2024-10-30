@@ -8,6 +8,12 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 1 {
+		fmt.Printf("No arguments\n")
+		fmt.Printf("Usage: hash <list of strings to hash>\n")
+		os.Exit(1)
+	}
+
 	strs := os.Args[1:]
 
 	h := sha256.New()
