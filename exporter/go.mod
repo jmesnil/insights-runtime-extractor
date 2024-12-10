@@ -7,8 +7,8 @@ toolchain go1.22.5
 require (
 	github.com/onsi/gomega v1.34.1
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.31.2
-	k8s.io/apimachinery v0.31.2
+	k8s.io/api v0.31.3
+	k8s.io/apimachinery v0.31.3
 	sigs.k8s.io/e2e-framework v0.5.0
 )
 
