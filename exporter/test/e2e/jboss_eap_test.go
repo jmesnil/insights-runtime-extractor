@@ -128,6 +128,8 @@ func deployTestHelmRelease(appName string) func(context.Context, *testing.T, *en
 		if err := manager.RunInstall(helm.WithChart("https://github.com/jbossas/eap-charts/releases/download/eap8-1.1.2/eap8-1.1.2.tgz"),
 			helm.WithNamespace(namespace),
 			helm.WithName(appName),
+			helm.WithArgs("--set", "build.uri=https://github.com/openshift/insights-runtime-extractor"),
+			helm.WithArgs("--set", "build.contextDir=runtime-samples/jboss-eap/8.0"),
 		); err != nil {
 			g.Expect(err).ShouldNot(Ω.HaveOccurred())
 		}
