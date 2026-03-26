@@ -23,10 +23,10 @@ struct Args {
     log_level: Option<String>,
 
     #[arg(long, help = "Path to TLS certificate file (PEM format)")]
-    tls_cert: Option<String>,
+    tls_cert: String,
 
     #[arg(long, help = "Path to TLS private key file (PEM format)")]
-    tls_key: Option<String>,
+    tls_key: String,
 }
 
 fn main() {
@@ -45,37 +45,28 @@ fn main() {
     info!("Configuration:\n----\n{}\n----", config_content);
     config::get_config("/");
 
-    // Configure TLS if both cert and key are provided
-    let tls_config: Option<Arc<ServerConfig>> = match (&args.tls_cert, &args.tls_key) {
-        (Some(cert_path), Some(key_path)) => {
-            let cert_file =
-                fs::File::open(cert_path).expect("Failed to open TLS certificate file");
-            let key_file =
-                fs::File::open(key_path).expect("Failed to open TLS private key file");
+    // Configure TLS
+    let cert_path = &args.tls_cert;
+    let key_path = &args.tls_key;
 
-            let certs: Vec<_> = rustls_pemfile::certs(&mut BufReader::new(cert_file))
-                .collect::<Result<Vec<_>, _>>()
-                .expect("Failed to parse TLS certificate PEM");
-            let key = rustls_pemfile::private_key(&mut BufReader::new(key_file))
-                .expect("Failed to read TLS private key PEM")
-                .expect("No private key found in PEM file");
+    let cert_file = fs::File::open(cert_path).expect("Failed to open TLS certificate file");
+    let key_file = fs::File::open(key_path).expect("Failed to open TLS private key file");
 
-            let config = ServerConfig::builder()
-                .with_no_client_auth()
-                .with_single_cert(certs, key)
-                .expect("Failed to build TLS configuration");
+    let certs: Vec<_> = rustls_pemfile::certs(&mut BufReader::new(cert_file))
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Failed to parse TLS certificate PEM");
+    let key = rustls_pemfile::private_key(&mut BufReader::new(key_file))
+        .expect("Failed to read TLS private key PEM")
+        .expect("No private key found in PEM file");
 
-            info!("TLS enabled with cert={} key={}", cert_path, key_path);
-            Some(Arc::new(config))
-        }
-        (None, None) => {
-            info!("TLS not configured, running plain TCP");
-            None
-        }
-        _ => {
-            panic!("Both --tls-cert and --tls-key must be provided together");
-        }
-    };
+    let tls_config = Arc::new(
+        ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(certs, key)
+            .expect("Failed to build TLS configuration"),
+    );
+
+    info!("TLS enabled with cert={} key={}", cert_path, key_path);
 
     // Create a TCP listener
     // bound to the loopback address so that it can only be contacted
@@ -87,18 +78,14 @@ fn main() {
 
     for stream in listener.incoming() {
         match stream {
-            Ok(mut tcp_stream) => {
+            Ok(tcp_stream) => {
                 let log_level = log_level.clone();
                 let tls_config = tls_config.clone();
                 thread::spawn(move || {
-                    if let Some(config) = tls_config {
-                        let conn = rustls::ServerConnection::new(config)
-                            .expect("Failed to create TLS connection");
-                        let mut tls_stream = rustls::StreamOwned::new(conn, tcp_stream);
-                        handle_trigger_extraction(&mut tls_stream, log_level);
-                    } else {
-                        handle_trigger_extraction(&mut tcp_stream, log_level);
-                    }
+                    let conn = rustls::ServerConnection::new(tls_config)
+                        .expect("Failed to create TLS connection");
+                    let mut tls_stream = rustls::StreamOwned::new(conn, tcp_stream);
+                    handle_trigger_extraction(&mut tls_stream, log_level);
                 });
             }
             Err(err) => error!("Error during TCP connection: {}", err),
