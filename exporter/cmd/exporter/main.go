@@ -192,13 +192,17 @@ func collectWorkloadPayload(hash bool, dataPath string) (types.NodeRuntimeInfo, 
 
 func main() {
 	bindAddress := flag.String("bind", "127.0.0.1", "Bind address")
-	flag.StringVar(&tlsCertPath, "tls-cert", "", "Path to TLS certificate file (PEM format) for verifying the extractor server")
+	flag.StringVar(&tlsCertPath, "tls-cert", "", "Path to TLS certificate file (PEM format)")
+	tlsKeyPath := flag.String("tls-key", "", "Path to TLS private key file (PEM format)")
 	flag.StringVar(&tlsServerName, "tls-server-name", "", "Server name for TLS certificate verification (must match a SAN in the server certificate)")
 
 	flag.Parse()
 
 	if tlsCertPath == "" {
 		log.Fatal("The -tls-cert flag is required")
+	}
+	if *tlsKeyPath == "" {
+		log.Fatal("The -tls-key flag is required")
 	}
 
 	caCert, err := os.ReadFile(tlsCertPath)
@@ -213,13 +217,13 @@ func main() {
 		RootCAs:    caCertPool,
 		ServerName: tlsServerName,
 	}
-	log.Printf("TLS enabled with cert=%s", tlsCertPath)
+	log.Printf("TLS enabled with cert=%s key=%s", tlsCertPath, *tlsKeyPath)
 
 	http.HandleFunc("/gather_runtime_info", gatherRuntimeInfo)
 
 	address := *bindAddress + ":8000"
-	log.Printf("Starting exporter HTTP server at %s\n", address)
-	if err := http.ListenAndServe(address, nil); err != nil {
+	log.Printf("Starting exporter HTTPS server at %s\n", address)
+	if err := http.ListenAndServeTLS(address, tlsCertPath, *tlsKeyPath, nil); err != nil {
 		log.Fatal(err)
 	}
 }
