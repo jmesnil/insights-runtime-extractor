@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -93,14 +92,7 @@ var tlsServerName string
 var tlsConfig *tls.Config
 
 func triggerRuntimeInfoExtraction(containerIds []string) (string, error) {
-	var conn net.Conn
-	var err error
-
-	if tlsConfig != nil {
-		conn, err = tls.Dial("tcp", EXTRACTOR_ADDRESS, tlsConfig)
-	} else {
-		conn, err = net.Dial("tcp", EXTRACTOR_ADDRESS)
-	}
+	conn, err := tls.Dial("tcp", EXTRACTOR_ADDRESS, tlsConfig)
 	if err != nil {
 		return "", err
 	}
@@ -113,14 +105,8 @@ func triggerRuntimeInfoExtraction(containerIds []string) (string, error) {
 	// write to TCP connection to trigger a runtime extraction
 	fmt.Fprintf(conn, "%s", payload)
 	// close the write side to signal EOF to the server
-	// Both *net.TCPConn and *tls.Conn support CloseWrite()
-	type closeWriter interface {
-		CloseWrite() error
-	}
-	if cw, ok := conn.(closeWriter); ok {
-		if err := cw.CloseWrite(); err != nil {
-			return "", fmt.Errorf("failed to close write side: %w", err)
-		}
+	if err := conn.CloseWrite(); err != nil {
+		return "", fmt.Errorf("failed to close write side: %w", err)
 	}
 
 	dataPath, err := bufio.NewReader(conn).ReadString('\n')
@@ -211,21 +197,23 @@ func main() {
 
 	flag.Parse()
 
-	if tlsCertPath != "" {
-		caCert, err := os.ReadFile(tlsCertPath)
-		if err != nil {
-			log.Fatalf("Failed to read TLS certificate file: %v", err)
-		}
-		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			log.Fatal("Failed to parse TLS certificate")
-		}
-		tlsConfig = &tls.Config{
-			RootCAs:    caCertPool,
-			ServerName: tlsServerName,
-		}
-		log.Printf("TLS enabled with cert=%s", tlsCertPath)
+	if tlsCertPath == "" {
+		log.Fatal("The -tls-cert flag is required")
 	}
+
+	caCert, err := os.ReadFile(tlsCertPath)
+	if err != nil {
+		log.Fatalf("Failed to read TLS certificate file: %v", err)
+	}
+	caCertPool := x509.NewCertPool()
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		log.Fatal("Failed to parse TLS certificate")
+	}
+	tlsConfig = &tls.Config{
+		RootCAs:    caCertPool,
+		ServerName: tlsServerName,
+	}
+	log.Printf("TLS enabled with cert=%s", tlsCertPath)
 
 	http.HandleFunc("/gather_runtime_info", gatherRuntimeInfo)
 
