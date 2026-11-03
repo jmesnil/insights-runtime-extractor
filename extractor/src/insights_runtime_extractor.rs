@@ -77,7 +77,7 @@ pub fn scan_container(config: &Config, out: &String, container: &Container) {
         // create a directory to store this process' fingerprints
         // that is put it under a directory from the executing process so that concurrent
         // execution are stored in separate directories.
-        let container_output = format!("{}/{}", out, &process.pid);
+        let container_output = format!("{}/{}", out, &container_id);
         file::create_dir(&container_output, file::CONTAINER_DIR_MODE).expect(&format!(
             "Can not create output directory for container {}",
             &container.id
