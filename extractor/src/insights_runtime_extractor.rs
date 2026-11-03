@@ -83,11 +83,18 @@ pub fn scan_container(config: &Config, out: &String, container: &Container) {
             &container.id
         ));
         // Hand ownership to the target UID so the child can write after seteuid
-        chown(container_output.as_str(), Some(Uid::from_raw(*process.uid)), None)
-            .expect(&format!(
-                "Can not chown output directory for container {}",
-                &container.id
-        ));
+        if let Err(err) = chown(
+            container_output.as_str(),
+            Some(Uid::from_raw(*process.uid)),
+            None,
+        ) {
+            error!(
+                "Can not chown output directory for container {}: {}",
+                &container.id, err
+            );
+            let _ = fs::remove_dir_all(&container_output);
+            return;
+        }
 
         let mut container_info = HashMap::new();
         container_info.insert(String::from("pod-name"), container.pod_name.clone());
