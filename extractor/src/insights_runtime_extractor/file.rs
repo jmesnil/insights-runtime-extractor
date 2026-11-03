@@ -7,8 +7,8 @@ use std::path::Path;
 
 /// Owner-only access (rwx------) for the top-level scan directory.
 pub const SCAN_DIR_MODE: u32 = 0o700;
-/// Owner + group access (rwxrwx---) for per-container output directories.
-pub const CONTAINER_DIR_MODE: u32 = 0o770;
+/// Owner-only access (rwx------) for per-container output directories.
+pub const CONTAINER_DIR_MODE: u32 = 0o700;
 
 /// Create a directory and return its File.
 /// Remove the directory if it exists before creating it.
